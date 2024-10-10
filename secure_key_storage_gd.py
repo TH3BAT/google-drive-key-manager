@@ -50,7 +50,7 @@ def authenticate_drive():
 def derive_key(password: str, salt: bytes) -> bytes:
     """Derive a key from a password using bcrypt."""
     # Use bcrypt to hash the password with the provided salt
-    return bcrypt.kdf(password.encode(), salt, desired_key_bytes=32, rounds=100)
+    return bcrypt.kdf(password.encode(), salt, desired_key_bytes=32, rounds=100000)
 
 def create_key_file(file_name: str, size: int) -> bytes:
     """Create a key file with random bytes if it doesn't exist."""
