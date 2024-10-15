@@ -2,27 +2,37 @@
 This module provides a secure framework for encrypting and decrypting sensitive data, specifically private keys, using AES-256 encryption. It integrates with the Google Drive API for seamless storage and retrieval of encrypted files.
 
  Key Features:
-   - Key Derivation: Utilizes bcrypt with a unique salt for deriving a secure encryption key from a user-provided password, providing strong protection against brute-force and rainbow table attacks.
+   - **Key Derivation**: Utilizes bcrypt with a unique salt for deriving a secure encryption key from a user-provided password, providing strong protection against 
+     brute-force and rainbow table attacks.
 
-   - Encryption: Supports AES-256 encryption in GCM mode, ensuring both confidentiality and integrity of the encrypted data.
+   - **Encryption**: Supports AES-256 encryption in GCM mode, ensuring both confidentiality and integrity of the encrypted data. Encryption components (salt, nonce, 
+     tag, and ciphertext) are combined into a single file for simplified management.
 
-   - File Handling: Automatically manages the generation and storage of necessary key files (salt, nonce, tag) or prompts the user for manual input if these files are missing during decryption.
+   - **File Handling and Permissions**: Automatically manages the creation of a combined key file (including salt, nonce, tag, and encrypted data) and saves it with 
+     secure `600` permissions (read/write for the owner only).
 
-   - Google Drive Integration: Allows for secure uploading and downloading of encrypted files to and from Google Drive, enabling easy access to stored sensitive data.
+   - **Google Drive Integration**: Allows for secure uploading and downloading of encrypted files to and from Google Drive, enabling easy access to stored sensitive 
+     data while keeping it encrypted.
 
-   - User Input Management: Utilizes secure password prompts to prevent exposure of sensitive information during key encryption and decryption processes.
+   - **Hex Conversion Support**: Provides an option for converting individual AES keys, nonces, tags, and salts from hexadecimal values into a single combined key format 
+     for easy handling.
+
+   - **User Input Management**: Utilizes secure password prompts to prevent exposure of sensitive information during key encryption and decryption processes. The user can 
+     convert existing encryption parameters into the new format or decrypt using the combined key.
 
  Usage:
-  1. Run the module and choose to either encrypt a new key or decrypt an existing one.
-  2. For encryption, input your private key and a password to generate an encrypted file stored in Google Drive.
-  3. For decryption, download the encrypted file from Google Drive and input the password to retrieve your private key.
+  1. Run the module and choose one of the following:
+     - (e)ncrypt a new key: Input your private key and a password to generate an encrypted file stored securely with `600` permissions and uploaded to Google Drive.
+     - (d)ecrypt an existing key: Download the encrypted file from Google Drive and input the password to retrieve your private key.
+     - (c)onvert hex to combined key: Input existing AES key, nonce, tag, and salt in hexadecimal format to generate a new combined key file.
 
  Dependencies:
   - Requires the `cryptography` library for cryptographic operations.
   - Requires the `google-api-python-client` library for Google Drive API interactions.
-
-Note: Ensure you have a valid Google service account with appropriate permissions and the `client_secrets.json` file for authentication.
+  
+ Note: Ensure you have a valid Google service account with appropriate permissions and the `client_secrets.json` file for Google Drive authentication.
 """
+
 
 import os
 import stat
@@ -52,85 +62,49 @@ def derive_key(password: str, salt: bytes) -> bytes:
     # Use bcrypt to hash the password with the provided salt
     return bcrypt.kdf(password.encode(), salt, desired_key_bytes=32, rounds=100000)
 
-def create_key_file(file_name: str, size: int) -> bytes:
-    """Create a key file with random bytes if it doesn't exist."""
-    if not os.path.exists(file_name):
-        key = os.urandom(size)
-        with open(file_name, 'wb') as f:
-            f.write(key)
-        
-        # Set file permissions to 600 (read/write for owner only)
-        os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-    else:
-        with open(file_name, 'rb') as f:
-            key = f.read()
-    return key
-
-def encrypt_key(key: str, password: str, aes_key: str, nonce_key: str, tag_key: str):
-    """Encrypt the key using AES-256 encryption."""
+def create_combined_key_file(file_name: str, combined_key: bytes):
+    """Write the combined key to a file with 600 permissions."""
+    with open(file_name, 'wb') as f:
+        f.write(combined_key)
     
-    # Generate salt
-    salt = bcrypt.gensalt()  # Generate a new salt with bcrypt
-    with open('salt.key', 'wb') as sf:
-        sf.write(salt)
+    # Set file permissions to 600 (read/write for owner only)
+    os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
 
-    # Derive AES key from password and salt
+def encrypt_key(key: str, password: str) -> bytes:
+    """Encrypt the key using AES-256 encryption and combine all components into one file."""
+    
+    # Generate salt and derive AES key from password and salt
+    salt = bcrypt.gensalt()
     encryption_key = derive_key(password, salt)
 
     # Generate nonce
-    nonce = os.urandom(16)  # Generate a new nonce
-    with open(nonce_key, 'wb') as kf:
-        kf.write(nonce)
+    nonce = os.urandom(16)
 
     # Create AES cipher
     cipher = Cipher(algorithms.AES(encryption_key), modes.GCM(nonce), backend=default_backend())
     encryptor = cipher.encryptor()
 
-    # Pad the key and encrypt
+    # Pad and encrypt the key
     padder = padding.PKCS7(algorithms.AES.block_size).padder()
     padded_data = padder.update(key.encode()) + padder.finalize()
-    encrypted_key = encryptor.update(padded_data) + encryptor.finalize()  # Encrypt the padded data
-    tag = encryptor.tag  # Get the tag
+    encrypted_key = encryptor.update(padded_data) + encryptor.finalize()
+    tag = encryptor.tag
 
-    # Save tag
-    with open(tag_key, 'wb') as kf:
-        kf.write(tag)
+    # Combine all components (AES key, nonce, tag, and salt)
+    combined_key = salt + nonce + tag + encrypted_key
+    return combined_key
 
-    return encrypted_key, nonce, tag, salt
-
-def decrypt_key(encrypted_key: bytes, password: str, nonce_key: str, tag_key: str) -> str:
-    """Decrypt the key using AES-256 encryption."""
-    salt = None
-    nonce = None
-    tag = None
+def decrypt_key(combined_key: bytes, password: str) -> str:
+    """Decrypt the key using AES-256 from the combined key file."""
     
-    # Try to read salt, nonce, and tag from files
-    try:
-        with open('salt.key', 'rb') as sf:
-            salt = sf.read()
-    except FileNotFoundError:
-        # If salt file does not exist, prompt user for salt
-        salt_input = input("Salt file not found. Please enter the salt in hexadecimal: ")
-        salt = bytes.fromhex(salt_input.strip())
-    
+    # Extract the components from the combined key
+    salt = combined_key[:29]  # bcrypt salt is 29 bytes
+    nonce = combined_key[29:45]  # nonce is 16 bytes
+    tag = combined_key[45:61]  # tag is 16 bytes
+    encrypted_key = combined_key[61:]  # the rest is the encrypted key
+
     # Derive AES key from password and salt
     encryption_key = derive_key(password, salt)
-
-    try:
-        with open(nonce_key, 'rb') as kf:
-            nonce = kf.read()
-    except FileNotFoundError:
-        # If nonce file does not exist, prompt user for nonce
-        nonce_input = input("Nonce file not found. Please enter the nonce in hexadecimal: ")
-        nonce = bytes.fromhex(nonce_input.strip())
-
-    try:
-        with open(tag_key, 'rb') as kf:
-            tag = kf.read()
-    except FileNotFoundError:
-        # If tag file does not exist, prompt user for tag
-        tag_input = input("Tag file not found. Please enter the tag in hexadecimal: ")
-        tag = bytes.fromhex(tag_input.strip())
 
     # Create AES cipher for decryption
     cipher = Cipher(algorithms.AES(encryption_key), modes.GCM(nonce, tag), backend=default_backend())
@@ -142,6 +116,15 @@ def decrypt_key(encrypted_key: bytes, password: str, nonce_key: str, tag_key: st
     decrypted_key = unpadder.update(padded_data) + unpadder.finalize()
 
     return decrypted_key.decode()
+
+def convert_hex_to_combined_key(hex_aes_key: str, hex_nonce: str, hex_tag: str, hex_salt: str) -> bytes:
+    """Convert individual hex values back into a single combined key format."""
+    salt = bytes.fromhex(hex_salt)
+    nonce = bytes.fromhex(hex_nonce)
+    tag = bytes.fromhex(hex_tag)
+    aes_key = bytes.fromhex(hex_aes_key)
+    
+    return salt + nonce + tag + aes_key
 
 def upload_to_drive(file_name: str, content: bytes, folder_id: str = None):
     drive_service = authenticate_drive()
@@ -178,49 +161,50 @@ def download_from_drive(file_id: str, file_name: str):
             print(f"Download {int(status.progress() * 100)}% complete.")
 
 def main():
-    aes_key = 'aes.key'
-    nonce_key = 'nonce.key'
-    tag_key = 'tag.key'
-    
-    # Create key files if they don't exist
-    create_key_file(aes_key, 32)  # 32 bytes for AES-256
-    create_key_file(nonce_key, 16)  # 16 bytes for nonce
-    create_key_file(tag_key, 16)  # 16 bytes for GCM tag
+    combined_key_file = 'combined.key'
 
-    action = input("Do you want to (e)ncrypt a new key or (d)ecrypt an existing one? (e/d): ").lower()
-    
+    action = input("Do you want to (e)ncrypt a new key, (d)ecrypt an existing one, or (c)onvert hex to combined key? (e/d/c): ").lower()
+
     if action == 'e':
         private_key = input("Enter your private key to encrypt: ")
         password = getpass.getpass("Enter a password to secure the key: ")
-        encrypted_key, nonce, tag, salt = encrypt_key(private_key, password, aes_key, nonce_key, tag_key)
-
-        # Print keys for backup
-        with open(aes_key, 'rb') as kf:
-            encryption_key = kf.read()
-        print(f"AES Key (in hexadecimal): {encryption_key.hex()}")  # Display AES key in hexadecimal
+        combined_key = encrypt_key(private_key, password)
         
-        print(f"Nonce (in hexadecimal): {nonce.hex()}")  # Display Nonce in hexadecimal
-        print(f"Tag (in hexadecimal): {tag.hex()}")      # Display Tag in hexadecimal
-        print(f"Salt (in hexadecimal): {salt.hex()}")    # Display Salt in hexadecimal
+        # Save the combined key to file with 600 permissions
+        create_combined_key_file(combined_key_file, combined_key)
 
+        print(f"Combined key saved to {combined_key_file} with secure permissions.")
+        
         # Upload to Google Drive
-        folder_id = '1js7SqUpbqIoEFAT1HX8lX67JTGJwwZH0'  # Keys folder under My Drive
-        upload_to_drive('topo.txt', encrypted_key, folder_id)
-        
+        folder_id = '1js7SqUpbqIoEFAT1HX8lX67JTGJwwZH0'  # Specify your Google Drive folder ID
+        upload_to_drive(combined_key_file, combined_key, folder_id)
         print("Encrypted key uploaded to Google Drive.")
 
     elif action == 'd':
         file_id = input("Enter the Google Drive file ID to download: ")
-        download_from_drive(file_id, 'topo.txt')
-        
-        # Read the downloaded encrypted key
-        with open('topo.txt', 'rb') as file:
-            encrypted_key = file.read()
+        download_from_drive(file_id, combined_key_file)
+
+        # Read the downloaded combined key
+        with open(combined_key_file, 'rb') as file:
+            combined_key = file.read()
 
         # Decrypt the key
         password = getpass.getpass("Enter the password to decrypt the key: ")
-        decrypted_key = decrypt_key(encrypted_key, password, nonce_key, tag_key)
+        decrypted_key = decrypt_key(combined_key, password)
         print(f"Decrypted Key: {decrypted_key}")
+
+    elif action == 'c':
+        hex_aes_key = input("Enter AES key (in hexadecimal): ")
+        hex_nonce = input("Enter nonce (in hexadecimal): ")
+        hex_tag = input("Enter tag (in hexadecimal): ")
+        hex_salt = input("Enter salt (in hexadecimal): ")
+
+        # Convert individual hex values into combined key
+        combined_key = convert_hex_to_combined_key(hex_aes_key, hex_nonce, hex_tag, hex_salt)
+        
+        # Save the combined key to file with 600 permissions
+        create_combined_key_file(combined_key_file, combined_key)
+        print(f"Converted hex values saved to {combined_key_file}.")
 
 if __name__ == '__main__':
     main()
