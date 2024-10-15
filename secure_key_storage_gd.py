@@ -176,7 +176,7 @@ def main():
         print(f"Combined key saved to {combined_key_file} with secure permissions.")
         
         # Upload to Google Drive
-        folder_id = '1js7SqUpbqIoEFAT1HX8lX67JTGJwwZH0'  # Specify your Google Drive folder ID
+        folder_id = 'google_drive_folder_id'  # Specify your Google Drive folder ID
         upload_to_drive(combined_key_file, combined_key, folder_id)
         print("Encrypted key uploaded to Google Drive.")
 
