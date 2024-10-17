@@ -36,7 +36,6 @@ It integrates with the Google Drive API for seamless storage and retrieval of en
  authentication.
 """
 
-
 import os
 import stat
 import json
