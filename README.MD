@@ -37,7 +37,7 @@ pip install google-api-python-client google-auth cryptography bcrypt rich
 1. Clone this repository:
 
    ```bash
-   git clone http://rptl4gk4z765v42xq7fa2jw5awmt7uepyrsqeqztnklcoun5udqcz2yd.onion/farley/google-drive-key-manager.git
+   git clone https://rptl4gk4z765v42xq7fa2jw5awmt7uepyrsqeqztnklcoun5udqcz2yd.local/farley/google-drive-key-manager.git
    cd google-drive-key-manager
    ```
 
