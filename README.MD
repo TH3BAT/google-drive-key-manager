@@ -37,7 +37,7 @@ pip install google-api-python-client google-auth cryptography bcrypt rich
 1. Clone this repository:
 
    ```bash
-   git clone https://github.com/yourusername/google-drive-key-manager.git
+   git clone http://rptl4gk4z765v42xq7fa2jw5awmt7uepyrsqeqztnklcoun5udqcz2yd.onion/farley/google-drive-key-manager.git
    cd google-drive-key-manager
    ```
 
@@ -48,7 +48,7 @@ pip install google-api-python-client google-auth cryptography bcrypt rich
 1. Run the module:
 
    ```bash
-   python your_module.py
+   google-DKM.py
    ```
 
 2. Follow the prompts to:
@@ -102,11 +102,4 @@ Contributions are welcome! Please fork the repository and submit a pull request 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-```
 
-### Customization
-- Replace `your_module.py` with the actual filename of your Python module.
-- Update the GitHub URL in the clone command to point to your repository.
-- Adjust the license section according to your project’s licensing terms.
-
-This README provides clear instructions for users to understand the module's capabilities and how to use it effectively. If you need any further modifications or additional sections, feel free to ask!
