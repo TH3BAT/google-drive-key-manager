@@ -60,6 +60,7 @@ SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', 'client_secrets.
 
 console = Console()
 
+
 def authenticate_drive():
     """
     Authenticate and build the Google Drive service client.
@@ -75,6 +76,7 @@ def authenticate_drive():
         console.print(f"[red]Failed to authenticate Google Drive: {e}")
         raise
 
+
 def derive_key(password: str, salt: bytes) -> bytes:
     """
     Derive a key from a password using bcrypt.
@@ -87,6 +89,7 @@ def derive_key(password: str, salt: bytes) -> bytes:
         bytes: The derived key.
     """
     return bcrypt.kdf(password.encode(), salt, desired_key_bytes=32, rounds=100000)
+
 
 def create_combined_key_file(file_name: str, combined_key: bytes):
     """
@@ -103,6 +106,7 @@ def create_combined_key_file(file_name: str, combined_key: bytes):
     except Exception as e:
         console.print(f"[red]Error writing combined key file: {e}")
         raise
+
 
 def encrypt_key(key: str, password: str) -> bytes:
     """
@@ -130,6 +134,7 @@ def encrypt_key(key: str, password: str) -> bytes:
     combined_key = salt + nonce + tag + encrypted_key
     return combined_key
 
+
 def decrypt_key(combined_key: bytes, password: str) -> str:
     """
     Decrypt the key using AES-256 from the combined key file.
@@ -156,6 +161,7 @@ def decrypt_key(combined_key: bytes, password: str) -> str:
     decrypted_key = unpadder.update(padded_data) + unpadder.finalize()
 
     return decrypted_key.decode()
+
 
 def convert_hex_to_combined_key(hex_aes_key: str, hex_nonce: str, hex_tag: str, hex_salt: str) -> bytes:
     """
@@ -321,6 +327,7 @@ def main():
 
     else:
         console.print("[red]Invalid option. Please select (e), (d), or (c).")
+
 
 if __name__ == "__main__":
     main()
