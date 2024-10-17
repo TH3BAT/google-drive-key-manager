@@ -1,28 +1,30 @@
 """
-This module provides a secure framework for encrypting and decrypting sensitive data, specifically private keys, using AES-256 encryption. It integrates with the Google Drive API for seamless storage and retrieval of encrypted files.
+This module provides a secure framework for encrypting and decrypting sensitive data, specifically private keys, using AES-256 encryption. 
+It integrates with the Google Drive API for seamless storage and retrieval of encrypted files.
 
  Key Features:
-   - **Key Derivation**: Utilizes bcrypt with a unique salt for deriving a secure encryption key from a user-provided password, providing strong protection against 
-     brute-force and rainbow table attacks.
+   - **Key Derivation**: Utilizes bcrypt with a unique salt for deriving a secure encryption key from a user-provided password, providing 
+     strong protection against brute-force and rainbow table attacks.
 
-   - **Encryption**: Supports AES-256 encryption in GCM mode, ensuring both confidentiality and integrity of the encrypted data. Encryption components (salt, nonce, 
-     tag, and ciphertext) are combined into a single file for simplified management.
+   - **Encryption**: Supports AES-256 encryption in GCM mode, ensuring both confidentiality and integrity of the encrypted data. Encryption 
+     components (salt, nonce, tag, and ciphertext) are combined into a single file for simplified management.
 
-   - **File Handling and Permissions**: Automatically manages the creation of a combined key file (including salt, nonce, tag, and encrypted data) and saves it with 
-     secure `600` permissions (read/write for the owner only).
+   - **File Handling and Permissions**: Automatically manages the creation of a combined key file (including salt, nonce, tag, and encrypted 
+     data) and saves it with secure `600` permissions (read/write for the owner only).
 
-   - **Google Drive Integration**: Allows for secure uploading and downloading of encrypted files to and from Google Drive, enabling easy access to stored sensitive 
-     data while keeping it encrypted.
+   - **Google Drive Integration**: Allows for secure uploading and downloading of encrypted files to and from Google Drive, enabling easy 
+     access to stored sensitive data while keeping it encrypted.
 
-   - **Hex Conversion Support**: Provides an option for converting individual AES keys, nonces, tags, and salts from hexadecimal values into a single combined key format 
-     for easy handling.
+   - **Hex Conversion Support**: Provides an option for converting individual AES keys, nonces, tags, and salts from hexadecimal values into a 
+     single combined key format for easy handling.
 
-   - **User Input Management**: Utilizes secure password prompts to prevent exposure of sensitive information during key encryption and decryption processes. The user can 
-     convert existing encryption parameters into the new format or decrypt using the combined key.
+   - **User Input Management**: Utilizes secure password prompts to prevent exposure of sensitive information during key encryption and 
+     decryption processes. The user can convert existing encryption parameters into the new format or decrypt using the combined key.
 
  Usage:
   1. Run the module and choose one of the following:
-     - (e)ncrypt a new key: Input your private key and a password to generate an encrypted file stored securely with `600` permissions and uploaded to Google Drive.
+     - (e)ncrypt a new key: Input your private key and a password to generate an encrypted file stored securely with `600` permissions and 
+       uploaded to Google Drive.
      - (d)ecrypt an existing key: Download the encrypted file from Google Drive and input the password to retrieve your private key.
      - (c)onvert hex to combined key: Input existing AES key, nonce, tag, and salt in hexadecimal format to generate a new combined key file.
 
@@ -30,7 +32,8 @@ This module provides a secure framework for encrypting and decrypting sensitive 
   - Requires the `cryptography` library for cryptographic operations.
   - Requires the `google-api-python-client` library for Google Drive API interactions.
   
- Note: Ensure you have a valid Google service account with appropriate permissions and the `client_secrets.json` file for Google Drive authentication.
+ Note: Ensure you have a valid Google service account with appropriate permissions and the `client_secrets.json` file for Google Drive 
+ authentication.
 """
 
 
