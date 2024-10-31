@@ -47,12 +47,11 @@ import bcrypt
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+import io
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
-from rich.progress import Progress
 from rich.console import Console
-from rich.spinner import Spinner
 
 # Constants for Google Drive API
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
@@ -60,274 +59,133 @@ SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', 'client_secrets.
 
 console = Console()
 
-
+# Authentication function for Google Drive API
 def authenticate_drive():
-    """
-    Authenticate and build the Google Drive service client.
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    return build('drive', 'v3', credentials=credentials)
 
-    Returns:
-        drive_service: The authenticated Google Drive service client.
-    """
-    try:
-        creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-        drive_service = build('drive', 'v3', credentials=creds)
-        return drive_service
-    except Exception as e:
-        console.print(f"[red]Failed to authenticate Google Drive: {e}")
-        raise
-
-
-def derive_key(password: str, salt: bytes) -> bytes:
-    """
-    Derive a key from a password using bcrypt.
-
-    Args:
-        password (str): The password to derive the key from.
-        salt (bytes): The salt used for key derivation.
-
-    Returns:
-        bytes: The derived key.
-    """
-    return bcrypt.kdf(password.encode(), salt, desired_key_bytes=32, rounds=100000)
-
-
-def create_combined_key_file(file_name: str, combined_key: bytes):
-    """
-    Write the combined key to a file with secure permissions.
-
-    Args:
-        file_name (str): The name of the file to create.
-        combined_key (bytes): The combined key to write to the file.
-    """
-    try:
-        with open(file_name, 'wb') as f:
-            f.write(combined_key)
-        os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-    except Exception as e:
-        console.print(f"[red]Error writing combined key file: {e}")
-        raise
-
-
-def encrypt_key(key: str, password: str) -> bytes:
-    """
-    Encrypt the key using AES-256 encryption and combine all components into one file.
-
-    Args:
-        key (str): The key to encrypt.
-        password (str): The password used for encryption.
-
-    Returns:
-        bytes: The combined encrypted key components.
-    """
+# Function to encrypt the key with password protection
+def encrypt_key(private_key: str, password: str) -> bytes:
     salt = bcrypt.gensalt()
-    encryption_key = derive_key(password, salt)
-    nonce = os.urandom(16)
-
-    cipher = Cipher(algorithms.AES(encryption_key), modes.GCM(nonce), backend=default_backend())
+    aes_key = bcrypt.kdf(password.encode(), salt, 32, 100000)
+    nonce = secrets.token_bytes(16)
+    padder = padding.PKCS7(128).padder()
+    padded_key = padder.update(private_key.encode()) + padder.finalize()
+    cipher = Cipher(algorithms.AES(aes_key), modes.GCM(nonce), backend=default_backend())
     encryptor = cipher.encryptor()
-
-    padder = padding.PKCS7(algorithms.AES.block_size).padder()
-    padded_data = padder.update(key.encode()) + padder.finalize()
-    encrypted_key = encryptor.update(padded_data) + encryptor.finalize()
+    encrypted_key = encryptor.update(padded_key) + encryptor.finalize()
     tag = encryptor.tag
+    return salt + nonce + tag + encrypted_key
 
-    combined_key = salt + nonce + tag + encrypted_key
-    return combined_key
-
-
+# Function to decrypt the key using password
 def decrypt_key(combined_key: bytes, password: str) -> str:
-    """
-    Decrypt the key using AES-256 from the combined key file.
-
-    Args:
-        combined_key (bytes): The combined key to decrypt.
-        password (str): The password used for decryption.
-
-    Returns:
-        str: The decrypted key.
-    """
     salt = combined_key[:29]
     nonce = combined_key[29:45]
     tag = combined_key[45:61]
     encrypted_key = combined_key[61:]
-
-    encryption_key = derive_key(password, salt)
-
-    cipher = Cipher(algorithms.AES(encryption_key), modes.GCM(nonce, tag), backend=default_backend())
+    aes_key = bcrypt.kdf(password.encode(), salt, 32, 100)
+    cipher = Cipher(algorithms.AES(aes_key), modes.GCM(nonce, tag), backend=default_backend())
     decryptor = cipher.decryptor()
+    padded_key = decryptor.update(encrypted_key) + decryptor.finalize()
+    unpadder = padding.PKCS7(128).unpadder()
+    return (unpadder.update(padded_key) + unpadder.finalize()).decode()
 
-    padded_data = decryptor.update(encrypted_key) + decryptor.finalize()
-    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
-    decrypted_key = unpadder.update(padded_data) + unpadder.finalize()
-
-    return decrypted_key.decode()
-
-
+# Function to convert hex components to a combined key
 def convert_hex_to_combined_key(hex_aes_key: str, hex_nonce: str, hex_tag: str, hex_salt: str) -> bytes:
-    """
-    Convert hexadecimal values to combined key format.
-
-    Args:
-        hex_aes_key (str): AES key in hexadecimal.
-        hex_nonce (str): Nonce in hexadecimal.
-        hex_tag (str): Tag in hexadecimal.
-        hex_salt (str): Salt in hexadecimal.
-
-    Returns:
-        bytes: The combined key in bytes.
-    """
-    salt = bytes.fromhex(hex_salt)
+    aes_key = bytes.fromhex(hex_aes_key)
     nonce = bytes.fromhex(hex_nonce)
     tag = bytes.fromhex(hex_tag)
-    aes_key = bytes.fromhex(hex_aes_key)
-    
+    salt = bytes.fromhex(hex_salt)
     return salt + nonce + tag + aes_key
 
+# Function to save combined key file securely
+def create_combined_key_file(file_name: str, combined_key: bytes):
+    with open(file_name, 'wb') as file:
+        file.write(combined_key)
+    os.chmod(file_name, stat.S_IREAD | stat.S_IWRITE)
 
+# Function to upload file to Google Drive
 def upload_to_drive(file_name: str, content: bytes, folder_id: str = None):
-    """
-    Upload a file to Google Drive with progress tracking.
-
-    Args:
-        file_name (str): The name of the file to upload.
-        content (bytes): The content to write to the file.
-        folder_id (str, optional): The ID of the Google Drive folder to upload to. Defaults to None.
-
-    Raises:
-        Exception: If an error occurs during file upload or Drive API interaction.
-    """
     try:
         drive_service = authenticate_drive()
-        
-        # Create the file locally
         with open(file_name, 'wb') as file:
             file.write(content)
-
-        # File metadata for Google Drive
         file_metadata = {'name': file_name}
         if folder_id:
             file_metadata['parents'] = [folder_id]
-
-        # Prepare the file for upload with a MediaIoBaseUpload for progress tracking
         media = MediaIoBaseUpload(io.BytesIO(content), mimetype='text/plain', resumable=True)
-
-        with Progress() as progress:
-            task = progress.add_task("[green]Uploading to Google Drive...", total=len(content))
-
-            # Create a request to upload the file
+        with console.status("[bold green]Uploading to Google Drive..."):
             request = drive_service.files().create(body=file_metadata, media_body=media, fields='id')
-
-            # Monitor the upload process
             while True:
-                status = request.next_chunk()
-                if status:
-                    progress.update(task, advance=status.bytes_uploaded)
-                    if status.done():
-                        break
-
-        console.print(f"[green]File uploaded successfully to folder ID {folder_id}. File ID: {uploaded_file['id']}")
-        
+                upload_status, response = request.next_chunk()
+                if response:
+                    console.print(f"[green]File uploaded successfully. File ID: {response.get('id')}")
+                    break
     except Exception as e:
         console.print(f"[red]Error uploading file to Google Drive: {e}")
 
-
-def download_from_drive(file_id: str, file_name: str):
-    """
-    Download a file from Google Drive.
-
-    Args:
-        file_id (str): The ID of the file to download.
-        file_name (str): The name to save the downloaded file as.
-
-    Raises:
-        Exception: If an error occurs during the download process.
-    """
+# Function to download a file from Google Drive
+def download_from_drive(file_id: str, destination: str):
     try:
         drive_service = authenticate_drive()
         request = drive_service.files().get_media(fileId=file_id)
-
-        with open(file_name, 'wb') as file:
-            downloader = MediaIoBaseDownload(file, request)
-            spinner = Spinner('dots', text="Downloading from Google Drive...")
-
-            # Start the spinner and download process
-            console.print(spinner)
-            done = False
+        fh = io.FileIO(destination, 'wb')
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        with console.status("[bold green]Downloading file from Google Drive..."):
             while not done:
                 status, done = downloader.next_chunk()
-                progress = int(status.progress() * 100)
-                console.log(f"Download {progress}% complete.")
-
-        console.print("[green]Download complete!")
-
+                console.print(f"Download progress: {int(status.progress() * 100)}%", end='\r')
+        console.print("[green]File downloaded successfully.")
     except Exception as e:
         console.print(f"[red]Error downloading file from Google Drive: {e}")
 
-
+# Main function to handle user actions
 def main():
-    """
-    Main function to handle user actions: encrypting, decrypting, and converting keys.
-    """
     combined_key_file = 'combined.key'
-
-    action = input("Do you want to (e)ncrypt a new key, (d)ecrypt an existing one, or (c)onvert hex to combined key? (e/d/c): ").lower()
-
+    action = input("Do you want to (e)ncrypt a new key, (d)ecrypt an existing one, (c)onvert hex to combined key, or (q)uit? (e/d/c/q): ").lower()
     if action == 'e':
         private_key = input("Enter your private key to encrypt: ")
         password = getpass.getpass("Enter a password to secure the key: ")
-
-        with Progress() as progress:
-            task = progress.add_task("[green]Generating key...", total=100)
+        with console.status("[bold green]Encrypting key..."):
             combined_key = encrypt_key(private_key, password)
-            for percent in range(100):
-                progress.update(task, advance=1)
-
         create_combined_key_file(combined_key_file, combined_key)
-
-        console.print(f"[green]Combined key saved to {combined_key_file} with secure permissions.")
-
-        # Display hex representations of the combined key components
+        console.print(f"[green]Combined key saved to {combined_key_file}.")
         with open(combined_key_file, 'rb') as file:
             combined_key = file.read()
-
         salt = combined_key[:29]
         nonce = combined_key[29:45]
         tag = combined_key[45:61]
         encrypted_key = combined_key[61:]
-        
-        console.print(f"AES Key (in hexadecimal): {encrypted_key.hex()}")
-        console.print(f"Nonce (in hexadecimal): {nonce.hex()}")
-        console.print(f"Tag (in hexadecimal): {tag.hex()}")
-        console.print(f"Salt (in hexadecimal): {salt.hex()}")
-
-        folder_id = input("Enter the Google Drive folder ID to upload the file to (leave empty for root): ") or None
+        console.print(f"AES Key (hex): {encrypted_key.hex()}")
+        console.print(f"Nonce (hex): {nonce.hex()}")
+        console.print(f"Tag (hex): {tag.hex()}")
+        console.print(f"Salt (hex): {salt.hex()}")
+        folder_id = input("Enter Google Drive folder ID (or press Enter for root): ") or None
         upload_to_drive(combined_key_file, combined_key, folder_id)
-
     elif action == 'd':
         file_id = input("Enter the Google Drive file ID to download: ")
         download_from_drive(file_id, combined_key_file)
-
         with open(combined_key_file, 'rb') as file:
             combined_key = file.read()
-
         password = getpass.getpass("Enter the password to decrypt the key: ")
-        decrypted_key = decrypt_key(combined_key, password)
-
+        with console.status("[bold green]Decrypting key..."):
+            decrypted_key = decrypt_key(combined_key, password)
         console.print(f"[green]Decrypted key: {decrypted_key}")
-
     elif action == 'c':
-        hex_aes_key = input("Enter the AES key in hexadecimal: ")
-        hex_nonce = input("Enter the Nonce in hexadecimal: ")
-        hex_tag = input("Enter the Tag in hexadecimal: ")
-        hex_salt = input("Enter the Salt in hexadecimal: ")
-
+        hex_aes_key = input("Enter AES key in hex: ")
+        hex_nonce = input("Enter Nonce in hex: ")
+        hex_tag = input("Enter Tag in hex: ")
+        hex_salt = input("Enter Salt in hex: ")
         combined_key = convert_hex_to_combined_key(hex_aes_key, hex_nonce, hex_tag, hex_salt)
         create_combined_key_file(combined_key_file, combined_key)
         console.print(f"[green]Combined key from hex values saved to {combined_key_file}.")
-
+    elif action == 'q':
+        console.print("[blue]Goodbye!")
+        return
     else:
-        console.print("[red]Invalid option. Please select (e), (d), or (c).")
-
+        console.print("[red]Invalid option. Please select (e), (d), (c), or (q).")
 
 if __name__ == "__main__":
     main()
