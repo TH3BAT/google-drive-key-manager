@@ -53,6 +53,7 @@ To authenticate with the Google Drive API, you need a valid service account file
 
 ```python
 # Code snippets for encryption and decryption are provided in the script above.
+```
 
 ## License
 
