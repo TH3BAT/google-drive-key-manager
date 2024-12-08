@@ -1,104 +1,63 @@
-# Google Drive Key Manager
+# Google Key Drive Manager
 
-A Python module for encrypting, decrypting, and securely uploading keys to Google Drive using the Google Drive API. This tool enhances security by encrypting keys with AES-256 and offers a user-friendly interface for managing sensitive information.
+## Overview
 
-## Table of Contents
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Functions](#functions)
-- [Contributing](#contributing)
-- [License](#license)
+This module provides a secure framework for encrypting and decrypting sensitive data, specifically private keys, using AES-256 encryption. It integrates with the Google Drive API for seamless storage and retrieval of encrypted files.
 
-## Features
-- Encrypt and decrypt keys using AES-256 encryption.
-- Store keys securely in a combined file with restricted permissions.
-- Upload encrypted keys to Google Drive with progress tracking.
-- Download encrypted keys from Google Drive.
-- Convert hexadecimal values to a combined key format.
+## Key Features
 
-## Requirements
-- Python 3.7 or higher
-- Required packages:
-  - `google-api-python-client`
-  - `google-auth`
-  - `cryptography`
-  - `bcrypt`
-  - `rich`
-
-You can install the required packages using pip:
-
-```bash
-pip install google-api-python-client google-auth cryptography bcrypt rich
-```
-
-## Installation
-1. Clone this repository:
-
-   ```bash
-   git clone https://rptl4gk4z765v42xq7fa2jw5awmt7uepyrsqeqztnklcoun5udqcz2yd.local/farley/google-drive-key-manager.git
-   cd google-drive-key-manager
-   ```
-
-2. Create a Google Cloud project and enable the Google Drive API.
-3. Download your service account credentials as a JSON file and save it as `client_secrets.json` in the project directory.
+- **Key Derivation**: Utilizes bcrypt with a unique salt to derive a secure encryption key from a user-provided password, providing strong protection against brute-force and rainbow table attacks.
+  
+- **Encryption**: Supports AES-256 encryption in GCM mode, ensuring both confidentiality and integrity of the encrypted data. Encryption components (salt, nonce, tag, and ciphertext) are combined into a single file for simplified management.
+  
+- **File Handling and Permissions**: Automatically manages the creation of a combined key file (including salt, nonce, tag, and encrypted data) and saves it with secure 600 permissions (read/write for the owner only).
+  
+- **Google Drive Integration**: Allows for secure uploading and downloading of encrypted files to and from Google Drive, enabling easy access to stored sensitive data while keeping it encrypted.
+  
+- **Hex Conversion Support**: Provides an option to enter individual AES components (key, nonce, tag, and salt) in hexadecimal format if the combined key file is lost. This feature allows users to recreate the combined key directly, adding a secondary recovery method.
+  
+- **User Input Management**: Utilizes secure password prompts to prevent exposure of sensitive information during key encryption and decryption processes. The user can either convert existing encryption parameters into the new format or decrypt using the combined key.
 
 ## Usage
-1. Run the module:
 
-   ```bash
-   google-DKM.py
-   ```
+1. Run the module and choose one of the following:
+    - **(e)ncrypt a new key**: Input your private key and a password to generate an encrypted file stored securely with 600 permissions and uploaded to Google Drive.
+    - **(d)ecrypt an existing key**: Download the encrypted file from Google Drive or manually input hex values if the file is missing, then enter the password to retrieve your private key.
+    - **(c)onvert hex to combined key**: Input existing AES key, nonce, tag, and salt in hexadecimal format to generate a new combined key file for backup.
 
-2. Follow the prompts to:
-   - Encrypt a new key
-   - Decrypt an existing key
-   - Convert hexadecimal values to a combined key format
+## Dependencies
 
-### Example Usage
-- To encrypt a key:
-   - Choose the option to encrypt a key.
-   - Enter your private key and a secure password.
-   - The combined key file will be created and uploaded to your specified Google Drive folder.
+- Requires the `cryptography` library for cryptographic operations.
+- Requires the `google-api-python-client` library for Google Drive API interactions.
+  
+**Note**: Ensure you have a valid Google service account with appropriate permissions and the `client_secrets.json` file for Google Drive authentication.
 
-- To decrypt a key:
-   - Choose the option to decrypt a key.
-   - Provide the Google Drive file ID of the encrypted key.
-   - Enter the password to decrypt and retrieve your original key.
+## Authentication and Setup
 
-- To convert hexadecimal values to a combined key:
-   - Choose the option to convert hex values.
-   - Input the required hexadecimal values for AES key, nonce, tag, and salt.
+To authenticate with the Google Drive API, you need a valid service account file. Ensure that your `client_secrets.json` file is available and contains the necessary credentials for Google Drive integration.
 
-## Functions
-### `authenticate_drive()`
-Authenticates and builds the Google Drive API service.
+## Example Workflow
 
-### `derive_key(password: str, salt: bytes) -> bytes`
-Derives a secure key from a given password using bcrypt.
+1. **Encrypt a new key**:
+   - Input your private key and a password to generate a new encrypted file.
+   - The file will be saved with secure 600 permissions and uploaded to Google Drive.
 
-### `create_combined_key_file(file_name: str, combined_key: bytes)`
-Creates a combined key file with secure permissions.
+2. **Decrypt an existing key**:
+   - Download the encrypted file from Google Drive or manually input the hex values if the file is lost.
+   - Enter your password to decrypt the key.
 
-### `encrypt_key(key: str, password: str) -> bytes`
-Encrypts a provided key using AES-256 encryption.
+3. **Convert hex to combined key**:
+   - If you have individual AES components (key, nonce, tag, salt) in hexadecimal format, you can use this option to generate a combined key file for backup.
 
-### `decrypt_key(combined_key: bytes, password: str) -> str`
-Decrypts an encrypted key.
+## Code Example
 
-### `convert_hex_to_combined_key(hex_aes_key: str, hex_nonce: str, hex_tag: str, hex_salt: str) -> bytes`
-Converts hexadecimal values into a combined key format.
-
-### `upload_to_drive(file_name: str, content: bytes, folder_id: str = None)`
-Uploads a file to Google Drive with progress tracking.
-
-### `download_from_drive(file_id: str, file_name: str)`
-Downloads a file from Google Drive.
-
-## Contributing
-Contributions are welcome! Please fork the repository and submit a pull request for any improvements or bug fixes.
+```python
+# Code snippets for encryption and decryption are provided in the script above.
 
 ## License
+
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+## Contributions
+
+Contributions are welcome! Feel free to open an issue or submit a pull request.
