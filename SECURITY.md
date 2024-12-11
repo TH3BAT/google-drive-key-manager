@@ -30,6 +30,6 @@ This document outlines the security practices and design considerations for the 
 - Regular security audits to ensure compliance and protection against emerging threats.
 
 ## Reporting Vulnerabilities
-If you discover a security issue, please report it responsibly by emailing **[secure-contact@example.com](mailto:Audacious6506@gmail.com)**.
+If you discover a security issue, please report it responsibly by emailing **[Audacious6506@gmail.com](mailto:Audacious6506@gmail.com)**.
 
 
