@@ -1,9 +1,12 @@
-![google-drive-key-manager Avatar](https://image.nostr.build/def4d36915c32f07110ea3ffeecddba0c60af0bf7085b1573dcd3f4dd13696af.jpg)
 # Google Key Drive Manager
+
+![google-drive-key-manager Avatar](https://image.nostr.build/def4d36915c32f07110ea3ffeecddba0c60af0bf7085b1573dcd3f4dd13696af.jpg)
 
 ## Overview
 
 This module provides a secure framework for encrypting and decrypting sensitive data, specifically private keys, using AES-256 encryption. It integrates with the Google Drive API for seamless storage and retrieval of encrypted files.
+
+---
 
 ## Key Features
 
@@ -19,12 +22,16 @@ This module provides a secure framework for encrypting and decrypting sensitive 
   
 - **User Input Management**: Utilizes secure password prompts to prevent exposure of sensitive information during key encryption and decryption processes. The user can either convert existing encryption parameters into the new format or decrypt using the combined key.
 
+---
+
 ## Usage
 
 1. Run the module and choose one of the following:
     - **(e)ncrypt a new key**: Input your private key and a password to generate an encrypted file stored securely with 600 permissions and uploaded to Google Drive.
     - **(d)ecrypt an existing key**: Download the encrypted file from Google Drive or manually input hex values if the file is missing, then enter the password to retrieve your private key.
     - **(c)onvert hex to combined key**: Input existing AES key, nonce, tag, and salt in hexadecimal format to generate a new combined key file for backup.
+
+---
 
 ## Dependencies
 
@@ -33,9 +40,13 @@ This module provides a secure framework for encrypting and decrypting sensitive 
   
 **Note**: Ensure you have a valid Google service account with appropriate permissions and the `client_secrets.json` file for Google Drive authentication.
 
+---
+
 ## Authentication and Setup
 
 To authenticate with the Google Drive API, you need a valid service account file. Ensure that your `client_secrets.json` file is available and contains the necessary credentials for Google Drive integration.
+
+---
 
 ## Example Workflow
 
@@ -50,16 +61,23 @@ To authenticate with the Google Drive API, you need a valid service account file
 3. **Convert hex to combined key**:
    - If you have individual AES components (key, nonce, tag, salt) in hexadecimal format, you can use this option to generate a combined key file for backup.
 
+---
+
 ## Code Example
 
 ```python
 # Code snippets for encryption and decryption are provided in the script above.
 ```
 
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+---
 
 ## Contributions
 
 Contributions are welcome! Feel free to open an issue or submit a pull request.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
